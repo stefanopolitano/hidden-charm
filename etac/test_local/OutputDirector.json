@@ -1,0 +1,15 @@
+{
+    "OutputDirector": {
+        "debug_mode": true,
+        "resfile": "AO2D",
+        "OutputDescriptors": [
+            {
+                "table": "AOD/HCSELCOLLISION/0"
+            },
+            {
+                "table": "AOD/HCSELTRACK/0"
+            }
+        ],
+        "ntfmerge": 1
+    }
+}
