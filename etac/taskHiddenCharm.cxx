@@ -12,8 +12,8 @@
 /// \file taskHiddenCharm.cxx
 /// \brief Analysis task for hidden charm hadrons at midrapidity
 ///
-/// \author A. Palasciano, INFN Bari
-/// \author S. Politanò, CERN
+/// \author A. Palasciano, <antonio.palasciano@cern.ch>, INFN Bari
+/// \author S. Politanò <stefano.politano@cern.ch>, CERN
 
 #include "PWGHF/Core/CentralityEstimation.h"
 #include "PWGHF/D2H/DataModel/HiddenCharm.h"
@@ -59,8 +59,8 @@ struct HfHiddenCharmHadrons {
 
   SliceCache cache;
 
-  using SelectedCollisionsPP = soa::Join<aod::Collisions, aod::HcSelCollisions>;
-  using SelectedCollisionsPbPb = soa::Join<aod::Collisions,
+using SelectedCollisionsPP = aod::HfRedCollisions const&; 
+using SelectedCollisionsPbPb = soa::Join<aod::Collisions,
                                            aod::HcSelCollisions,
                                            aod::CentFT0As,
                                            aod::CentFT0Cs,
@@ -84,6 +84,9 @@ struct HfHiddenCharmHadrons {
     const AxisSpec axisSign{thnConfigAxisSign, "q_{1} #times q_{2}"};
 
     registry.add("hSparseHiddenCharm", "Hidden-charm proton-pair candidates", HistType::kTHnSparseF, {axisInvMass, axisPt, axisSign, axisCent});
+    registry.add("hPtVsInvMassLikeSign", "Hidden-charm LS M_{inv}", HistType::kTHnSparseF, {axisInvMass, axisPt, axisSign, axisCent});
+    registry.add("hPtVsInvMassUnlikeSign", "Hidden-charm proton-pair ULS", HistType::kTHnSparseF, {axisInvMass, axisPt, axisSign, axisCent});
+    registry.add("hPtVsInvMassAllSign", "Hidden-charm proton-pair LS+ULS M_{inv}", HistType::kTHnSparseF, {axisInvMass, axisPt, axisSign, axisCent});    
   }
 
   template <o2::hf_centrality::CentralityEstimator CentEstimator, typename TCollisions, typename TProtonIds>

@@ -12,19 +12,23 @@
 /// \file dataCreatorHiddenCharmReduced.cxx
 /// \brief Reduced data creator for hidden-charm analyses at midrapidity
 ///
-/// \author A. Palasciano, INFN Bari
-/// \author S. Politanò, CERN
+/// \author A. Palasciano, <antonio.palasciano@cern.ch>, INFN Bari
+/// \author S. Politanò <stefano.politano@cern.ch>, CERN
 
 #include "PWGHF/Core/CentralityEstimation.h"
 #include "PWGHF/Core/SelectorCuts.h"
 #include "PWGHF/DataModel/AliasTables.h"
 #include "PWGHF/D2H/DataModel/ReducedDataModel.h"
+#include "PWGHF/D2H/Utils/utilsRedDataFormat.h"
 #include "PWGHF/DataModel/CandidateSelectionTables.h"
 #include "PWGHF/DataModel/TrackIndexSkimmingTables.h"
 #include "PWGHF/Utils/utilsAnalysis.h"
 #include "PWGHF/D2H/DataModel/HiddenCharm.h"
+#include "PWGHF/Utils/utilsBfieldCCDB.h"
 #include "PWGHF/Utils/utilsEvSelHf.h"
 
+#include "Common/Core/TPCVDriftManager.h"
+#include "Common/Core/ZorroSummary.h"
 #include "Common/DataModel/Centrality.h"
 #include "Common/DataModel/CollisionAssociationTables.h"
 #include "Common/DataModel/EventSelection.h"
@@ -33,9 +37,13 @@
 #include "Common/DataModel/TrackSelectionTables.h"
 
 #include <CCDB/BasicCCDBManager.h>
+#include <CCDB/CcdbApi.h>
+#include <DetectorsBase/MatLayerCylSet.h>
+#include <DetectorsBase/Propagator.h>
 #include <Framework/AnalysisDataModel.h>
 #include <Framework/AnalysisTask.h>
 #include <Framework/Configurable.h>
+#include <Framework/DeviceSpec.h>
 #include <Framework/HistogramRegistry.h>
 #include <Framework/HistogramSpec.h>
 #include <Framework/InitContext.h>
@@ -54,7 +62,6 @@ using namespace o2::aod;
 using namespace o2::framework;
 using namespace o2::framework::expressions;
 using namespace o2::hf_centrality;
-using namespace o2::hf_evsel;
 
 enum TrackType : uint8_t {
   Pion = 0,
@@ -62,69 +69,14 @@ enum TrackType : uint8_t {
   Proton
 };
 
-struct HfHiddenCharmSelCollisions {
-  Produces<aod::HcSelCollisions> rowSelectedCollision;
+struct HfDataCreatorEtaCToProtonReduced {
 
-  Configurable<bool> fillHistograms{"fillHistograms", true, "Fill collision QA histograms"};
-
-  HfEventSelection hfEvSel;
-  Service<o2::ccdb::BasicCCDBManager> ccdb{};
-  HistogramRegistry registry{"registry"};
-
-  void init(InitContext const&)
-  {
-    const std::array<int, 2> doProcess = {doprocessNoTrigSel, doprocessTrigAndCentFT0CSel};
-    if (std::accumulate(doProcess.begin(), doProcess.end(), 0) != 1) {
-      LOGP(fatal, "One and only one hidden-charm collision-selection process can be enabled at a time.");
-    }
-
-    hfEvSel.init(registry);
-    if (fillHistograms && doprocessTrigAndCentFT0CSel) {
-      const AxisSpec axisCentrality{200, 0., 100., "centrality percentile"};
-      registry.add("hCentralitySelected", "Centrality percentile of selected events in the centrality interval;centrality percentile;entries", {HistType::kTH1D, {axisCentrality}});
-      registry.add("hCentralityRejected", "Centrality percentile of selected events outside the centrality interval;centrality percentile;entries", {HistType::kTH1D, {axisCentrality}});
-    }
-  }
-
-  template <o2::hf_centrality::CentralityEstimator CentEstimator, typename Col, typename BCsType>
-  void selectCollision(Col const& collision, BCsType const&)
-  {
-    float centrality{-1.f};
-    const auto rejectionMask = hfEvSel.getHfCollisionRejectionMask<false, CentEstimator, BCsType>(collision, centrality, ccdb, registry);
-
-    if (fillHistograms) {
-      hfEvSel.fillHistograms(collision, rejectionMask, centrality);
-      if constexpr (CentEstimator != CentralityEstimator::None) {
-        if (rejectionMask == 0) {
-          registry.fill(HIST("hCentralitySelected"), centrality);
-        } else if (rejectionMask == BIT(EventRejection::Centrality)) {
-          registry.fill(HIST("hCentralityRejected"), centrality);
-        }
-      }
-    }
-
-    rowSelectedCollision(collision.globalIndex(), rejectionMask);
-  }
-
-  void processNoTrigSel(soa::Join<aod::Collisions, aod::EvSels>::iterator const& collision,
-                        aod::BcFullInfos const& bcs)
-  {
-    selectCollision<CentralityEstimator::None>(collision, bcs);
-  }
-  PROCESS_SWITCH(HfHiddenCharmSelCollisions, processNoTrigSel, "Select pp collisions without centrality", true);
-
-  void processTrigAndCentFT0CSel(soa::Join<aod::Collisions, aod::EvSels, aod::CentFT0Cs>::iterator const& collision,
-                                 aod::BcFullInfos const& bcs)
-  {
-    selectCollision<CentralityEstimator::FT0C>(collision, bcs);
-  }
-  PROCESS_SWITCH(HfHiddenCharmSelCollisions, processTrigAndCentFT0CSel, "Select PbPb collisions with trigger and FT0C centrality", false);
-};
-
-struct HfHiddenCharmSelTracks {
+  Produces<aod::HfRedCollisions> hfReducedCollision;
+  Produces<aod::HfOrigColCounts> hfCollisionCounter;
   Produces<aod::HcSelTracks> hfTrackLite;
 
   struct : ConfigurableGroup {
+    // track quality
     Configurable<bool> fillHistograms{"fillHistograms", true, "Fill proton QA histograms"};
     Configurable<bool> selectProtons{"selectProtons", true, "Select protons"};
     Configurable<int> itsNClsMin{"itsNClsMin", 5, "Minimum number of ITS clusters"};
@@ -143,19 +95,46 @@ struct HfHiddenCharmSelTracks {
     Configurable<float> maxNsigmaTpcPr{"maxNsigmaTpcPr", 3.f, "Maximum proton n-sigma in TPC"};
     Configurable<bool> forceTOF{"forceTOF", false, "Require TOF PID information for proton selection"};
   } config;
-  
-  SliceCache cache;
-  using TracksWithSelAndPid = soa::Join<aod::TracksWDcaExtra, aod::TrackSelection,
-                                        aod::pidTPCFullPi, aod::pidTOFFullPi, aod::pidTPCFullKa,
-                                        aod::pidTOFFullKa, aod::pidTPCFullPr, aod::pidTOFFullPr>;
-  using SelectedCollisions = soa::Filtered<soa::Join<aod::Collisions, aod::HcSelCollisions>>;
-  Filter filterSelectCollisions = (hiddencharmreduced::whyRejectColl == static_cast<o2::hf_evsel::HfCollisionRejectionMask>(0));
+
+  // other configurables
+  Configurable<std::string> ccdbUrl{"ccdbUrl", "http://alice-ccdb.cern.ch", "url of the ccdb repository"};
+  Configurable<std::string> ccdbPathGrpMag{"ccdbPathGrpMag", "GLO/Config/GRPMagField", "CCDB path of the GRPMagField object (Run 3)"};
+  Configurable<bool> doMcRecQa{"doMcRecQa", true, "Fill QA histograms for Mc matching"};
+  Configurable<bool> rejectPairsWithCommonDaughter{"rejectPairsWithCommonDaughter", true, "flag to reject already at this stage the pairs that share a daughter track"};
+  Configurable<bool> rejectCollisionsWithBadEvSel{"rejectCollisionsWithBadEvSel", true, "flag to reject collisions with bad event selection"};
+
+  o2::hf_evsel::HfEventSelection hfEvSel;
+  o2::hf_evsel::HfEventSelectionMc hfEvSelMc;
+
+  // CCDB service
+  o2::ccdb::CcdbApi ccdbApi;
+  Service<o2::ccdb::BasicCCDBManager> ccdb{};
+  double bz{0.};
+  int runNumber{0}; // needed to detect if the run changed and trigger update of calibrations etc.
+
+  // material correction for track propagation
+  o2::base::MatLayerCylSet* lut{};
+  o2::base::Propagator::MatCorrType matCorr = o2::base::Propagator::MatCorrType::USEMatCorrLUT;
+  o2::aod::common::TPCVDriftManager vDriftMgr;
+
+  using BCsInfo = soa::Join<aod::BCs, aod::Timestamps, aod::BcSels>;
+  using TracksWithPID = soa::Join<aod::Tracks, aod::TracksExtra, aod::TracksDCA, aod::TrackSelection, aod::pidTPCFullPi, aod::pidTOFFullPi, aod::pidTPCFullKa, aod::pidTOFFullKa, aod::pidTPCFullPr, aod::pidTOFFullPr>;
   Preslice<aod::TrackAssoc> trackIndicesPerCollision = aod::track_association::collisionId;
 
   HistogramRegistry registry{"registry"};
+  OutputObj<ZorroSummary> zorroSummary{"zorroSummary"};
 
-  void init(InitContext const&)
+  void init(InitContext& initContext)
   {
+    // Configure CCDB access
+    ccdb->setURL(ccdbUrl.value);
+    ccdb->setCaching(true);
+    ccdb->setLocalObjectValidityChecking();
+    ccdb->setCreatedNotAfter(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count());
+    ccdbApi.init(ccdbUrl);
+    runNumber = 0;
+    lut = o2::base::MatLayerCylSet::rectifyPtrFromFile(ccdb->get<o2::base::MatLayerCylSet>("GLO/Param/MatLUT"));
+
     if (config.fillHistograms) {
       const AxisSpec axisPt{360, 0., 36., "#it{p}_{T}^{proton} (GeV/#it{c})"};
       const AxisSpec axisEta{100, -1., 1., "#eta"};
@@ -170,6 +149,18 @@ struct HfHiddenCharmSelTracks {
       registry.add("hNSigmaTPCProton", "Selected proton tracks;#it{p}_{T}^{track} (GeV/#it{c});n#sigma_{TPC}", {HistType::kTH2D, {axisPt, axisNSigma}});
       registry.add("hNSigmaTOFProton", "Selected proton tracks;#it{p}_{T}^{track} (GeV/#it{c});n#sigma_{TOF}", {HistType::kTH2D, {axisPt, axisNSigma}});
       registry.add("hInvMass", "Invariant mass of selected proton with all other tracks in the event;#it{p}_{T}^{proton} (GeV/#it{c});invariant mass with other tracks (GeV/#it{c}^{2})", {HistType::kTH2D, {axisPt, AxisSpec{100, 2.85, 3.25, "invariant mass with other tracks (GeV/#it{c}^{2})"}}});
+    }
+    
+    // init HF event selection helper
+    hfEvSel.init(registry, &zorroSummary);
+
+    const auto& workflows = initContext.services().get<RunningWorkflowInfo const>();
+    for (const DeviceSpec& device : workflows.devices) {
+      if (device.name == "hf-data-creator-charm-reso-to-d0-reduced") {
+        // init HF event selection helper
+        hfEvSelMc.init(device, registry);
+        break;
+      }
     }
   }
 
@@ -246,74 +237,82 @@ struct HfHiddenCharmSelTracks {
     return isSelectedPid(track);
   }
 
-  void processTracks(SelectedCollisions const& collisions,
-                     aod::TrackAssoc const& trackIndices,
-                     TracksWithSelAndPid const& tracks)
+  void processEtaCTrack(soa::Join<aod::Collisions, aod::EvSels> const& collisions,
+                      aod::TrackAssoc const& trackIndices,
+                      TracksWithPID const& tracks,
+                      aod::BCsWithTimestamps const&)
   {
     hfTrackLite.reserve(tracks.size());
 
-    for (const auto& collision : collisions) { // loop over selected collisions
+    int zvtxColl{0};
+    int sel8Coll{0};
+    int zvtxAndSel8Coll{0};
+    int zvtxAndSel8CollAndSoftTrig{0};
+    int allSelColl{0};
+    for (const auto& collision : collisions) {
+      const auto hfRejMap = o2::hf_evsel::getEvSel<true, o2::hf_centrality::CentralityEstimator::None, aod::BCsWithTimestamps>(collision, hfEvSel, zvtxColl, sel8Coll, zvtxAndSel8Coll, zvtxAndSel8CollAndSoftTrig, allSelColl, ccdb, registry);
+      if (rejectCollisionsWithBadEvSel && hfRejMap != 0) {
+        continue;
+      }
       const auto thisCollId = collision.globalIndex();
-      const auto groupedTrackIds = trackIndices.sliceBy(trackIndicesPerCollision, thisCollId);
+      const auto trackIds = trackIndices.sliceBy(trackIndicesPerCollision, thisCollId);
       if (config.fillHistograms) {
         registry.fill(HIST("hPzVtx"), collision.posZ());
       }
-    
-      // vector of selected track indices for this collision
       std::vector<int> selectedTrackIds;
-      for (const auto& trackId : groupedTrackIds) { // loop over tracks for this collision
-        auto track = trackId.track_as<TracksWithSelAndPid>();
+      for (const auto& trkId : trackIds) {
+        auto trk = trkId.track_as<TracksWithPID>();
         if (config.fillHistograms) {
-          registry.fill(HIST("hPtNoCuts"), track.pt());
+          registry.fill(HIST("hPtNoCuts"), trk.pt());
         }
-
-        if (config.selectProtons && !isSelectedTrack(track)) { // apply selection cuts (kinematics, track quality, DCA, PID). TODO: template this function to be used for different particle species (pi, K, proton
+        if (!isSelectedTrack(trk)) {
           continue;
         }
-        std::array pVecProton{track.pVector()};
-        // fill output table with selected track information
-        hfTrackLite(collision.globalIndex(), track.globalIndex(), pVecProton[0], pVecProton[1], pVecProton[2], track.sign(), static_cast<uint8_t>(TrackType::Proton));
-        selectedTrackIds.push_back(track.globalIndex());
-        
+        std::array pVecProton{trk.pVector()};
+        hfTrackLite(collision.globalIndex(), trk.globalIndex(), pVecProton[0], pVecProton[1], pVecProton[2], trk.sign(), static_cast<uint8_t>(TrackType::Proton));
+        selectedTrackIds.push_back(trk.globalIndex());
         if (config.fillHistograms) {
-          registry.fill(HIST("hPtCutsProton"), track.pt());
-          registry.fill(HIST("hEtaCutsProton"), track.eta());
-          registry.fill(HIST("hDCAToPrimXYVsPtCutsProton"), track.pt(), track.dcaXY());
-          registry.fill(HIST("hNSigmaTPCProton"), track.pt(), track.tpcNSigmaPr());
-          if (track.hasTOF()) {
-            registry.fill(HIST("hNSigmaTOFProton"), track.pt(), track.tofNSigmaPr());
+          registry.fill(HIST("hPtCutsProton"), trk.pt());
+          registry.fill(HIST("hEtaCutsProton"), trk.eta());
+          registry.fill(HIST("hDCAToPrimXYVsPtCutsProton"), trk.pt(), trk.dcaXY());
+          registry.fill(HIST("hNSigmaTPCProton"), trk.pt(), trk.tpcNSigmaPr());
+          if (trk.hasTOF()) {
+            registry.fill(HIST("hNSigmaTOFProton"), trk.pt(), trk.tofNSigmaPr());
           }
         }
       }
-
-      // Loop over selected tracks for this collision and fill the output table
-      for (const auto& trackId1 : selectedTrackIds) {
-        auto track1 = tracks.rawIteratorAt(trackId1);
-        std::array pVec1{track1.pVector()};
-        for (const auto& trackId2 : selectedTrackIds) {
-          if (trackId2 <= trackId1) {
-            continue; // avoid double counting and self-pairs
-          }
-          auto track2 = tracks.rawIteratorAt(trackId2);
-          // reject same-sign pairs
-          if (track1.sign() * track2.sign() > 0) {
+      if(selectedTrackIds.size()<2){
+        continue;
+      }
+      hfReducedCollision(collision.posX(), collision.posY(), collision.posZ(), collision.numContrib(), hfRejMap, bz);
+      for (size_t i = 0; i < selectedTrackIds.size(); ++i) {
+        auto t1 = tracks.rawIteratorAt(selectedTrackIds[i]);
+        std::array pVec1{t1.pVector()};
+        for (size_t j = i + 1; j < selectedTrackIds.size(); ++j) {
+          auto t2 = tracks.rawIteratorAt(selectedTrackIds[j]);
+          if (t1.sign() * t2.sign() > 0) {
             continue;
           }
-          std::array pVec2{track2.pVector()};
+          std::array pVec2{t2.pVector()};
           float invMass = RecoDecay::m(std::array{pVec1, pVec2}, std::array{o2::constants::physics::MassProton, o2::constants::physics::MassProton});
           float ptEtac = RecoDecay::pt(RecoDecay::sumOfVec(pVec1, pVec2));
-          registry.fill(HIST("hInvMass"), ptEtac, invMass);
+          if (config.fillHistograms) {
+            registry.fill(HIST("hInvMass"), ptEtac, invMass);
+          }
         }
       }
     }
-  }
-  PROCESS_SWITCH(HfHiddenCharmSelTracks, processTracks, "Select tracks for hidden-charm analyses", true);
+    hfCollisionCounter(collisions.tableSize(), zvtxColl, sel8Coll, zvtxAndSel8Coll, zvtxAndSel8CollAndSoftTrig, allSelColl);
+  }  
+
+  PROCESS_SWITCH(HfDataCreatorEtaCToProtonReduced, processEtaCTrack, "EtaC -> p pbar reconstruction", true);
 };
+
+//struct
 
 WorkflowSpec defineDataProcessing(ConfigContext const& cfgc)
 {
   WorkflowSpec workflow{};
-  workflow.push_back(adaptAnalysisTask<HfHiddenCharmSelCollisions>(cfgc));
-  workflow.push_back(adaptAnalysisTask<HfHiddenCharmSelTracks>(cfgc));
+  workflow.push_back(adaptAnalysisTask<HfDataCreatorEtaCToProtonReduced>(cfgc));
   return workflow;
 }
