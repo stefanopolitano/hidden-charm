@@ -16,7 +16,7 @@
 /// \author S. Politanò <stefano.politano@cern.ch>, CERN
 
 #include "PWGHF/Core/CentralityEstimation.h"
-#include "PWGHF/D2H/DataModel/HiddenCharm.h"
+#include "PWGHF/D2H/DataModel/ReducedDataModel.h"
 
 #include "Common/Core/RecoDecay.h"
 #include "Common/DataModel/Centrality.h"
@@ -59,9 +59,9 @@ struct HfHiddenCharmHadrons {
 
   SliceCache cache;
 
-using SelectedCollisionsPP = aod::HfRedCollisions const&; 
+using SelectedCollisionsPP = aod::HfRedCollisions; 
 using SelectedCollisionsPbPb = soa::Join<aod::Collisions,
-                                           aod::HcSelCollisions,
+                                           aod::HfRedCollisions,
                                            aod::CentFT0As,
                                            aod::CentFT0Cs,
                                            aod::CentFT0Ms,
@@ -70,9 +70,9 @@ using SelectedCollisionsPbPb = soa::Join<aod::Collisions,
                                            aod::CentFT0CVariant2s>;
 
                             
-  Partition<aod::HcSelTracks> selectedProtons = aod::hiddencharmreduced::tracktype == static_cast<uint8_t>(TrackType::Proton);
-  Partition<aod::HcSelTracks> selectedPions = aod::hiddencharmreduced::tracktype == static_cast<uint8_t>(TrackType::Pion);
-  Partition<aod::HcSelTracks> selectedKaons = aod::hiddencharmreduced::tracktype == static_cast<uint8_t>(TrackType::Kaon);
+  Partition<aod::HcSelTracks> selectedProtons = aod::hf_track_vars_reduced::tracktype == static_cast<uint8_t>(TrackType::Proton);
+  Partition<aod::HcSelTracks> selectedPions = aod::hf_track_vars_reduced::tracktype == static_cast<uint8_t>(TrackType::Pion);
+  Partition<aod::HcSelTracks> selectedKaons = aod::hf_track_vars_reduced::tracktype == static_cast<uint8_t>(TrackType::Kaon);
 
   HistogramRegistry registry{"registry", {}};
 
@@ -84,9 +84,9 @@ using SelectedCollisionsPbPb = soa::Join<aod::Collisions,
     const AxisSpec axisSign{thnConfigAxisSign, "q_{1} #times q_{2}"};
 
     registry.add("hSparseHiddenCharm", "Hidden-charm proton-pair candidates", HistType::kTHnSparseF, {axisInvMass, axisPt, axisSign, axisCent});
-    registry.add("hPtVsInvMassLikeSign", "Hidden-charm LS M_{inv}", HistType::kTHnSparseF, {axisInvMass, axisPt, axisSign, axisCent});
-    registry.add("hPtVsInvMassUnlikeSign", "Hidden-charm proton-pair ULS", HistType::kTHnSparseF, {axisInvMass, axisPt, axisSign, axisCent});
-    registry.add("hPtVsInvMassAllSign", "Hidden-charm proton-pair LS+ULS M_{inv}", HistType::kTHnSparseF, {axisInvMass, axisPt, axisSign, axisCent});    
+    registry.add("hPtVsInvMassLikeSign", "Hidden-charm LS M_{inv}", HistType::kTH2D, {axisInvMass, axisPt});
+    registry.add("hPtVsInvMassUnlikeSign", "Hidden-charm proton-pair ULS", HistType::kTH2D, {axisInvMass, axisPt});
+    registry.add("hPtVsInvMassAllSign", "Hidden-charm proton-pair LS+ULS M_{inv}", HistType::kTH2D, {axisInvMass, axisPt});    
   }
 
   template <o2::hf_centrality::CentralityEstimator CentEstimator, typename TCollisions, typename TProtonIds>
@@ -119,19 +119,18 @@ using SelectedCollisionsPbPb = soa::Join<aod::Collisions,
           registry.fill(HIST("hPtVsInvMassLikeSign"), invMass, ptEtac);
         } else if (sign == -1) {
           registry.fill(HIST("hPtVsInvMassUnlikeSign"), invMass, ptEtac);
-        } else {
-          registry.fill(HIST("hPtVsInvMassAllSign"), invMass, ptEtac);
+        registry.fill(HIST("hPtVsInvMassAllSign"), invMass, ptEtac);
         }
       }
     }
 
   }
 
-  void processEtacPP(SelectedCollisionsPP::iterator const& collisions,
+  void processEtacPP(SelectedCollisionsPP::iterator const& collision,
                      aod::HcSelTracks const& /*tracks*/)
   {
-    auto candProtons = selectedProtons->sliceByCached(aod::hiddencharmreduced::collisionId, collisions.globalIndex(), cache);
-    fillEtac<CentralityEstimator::None>(collisions, candProtons);
+    auto candProtons = selectedProtons->sliceByCached(aod::hf_track_index_reduced::hfRedCollisionId, collision.globalIndex(), cache);
+    fillEtac<CentralityEstimator::None>(collision, candProtons);
   }
   PROCESS_SWITCH(HfHiddenCharmHadrons, processEtacPP, "Process Etac candidates for pp", true);
 

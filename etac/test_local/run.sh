@@ -9,6 +9,7 @@ o2-analysis-track-to-collision-associator $COMMONCONFIGS |\
 o2-analysis-pid-tof-base $COMMONCONFIGS |\
 o2-analysis-pid-tof-full $COMMONCONFIGS |\
 o2-analysis-tracks-extra-v002-converter $COMMONCONFIGS |\
-o2-analysis-hf-data-creator-hidden-charm-reduced $COMMONCONFIGS |\
-o2-analysis-hf-task-hidden-charm $COMMONCONFIGS --aod-file @input_data.txt --aod-writer-json OutputDirector.json
+o2-analysis-hf-data-creator-hidden-charm-reduced $COMMONCONFIGS --aod-writer-json OutputDirector.json --aod-file @input_data.txt
+#o2-analysis-hf-task-hidden-charm $COMMONCONFIGS --aod-writer-json OutputDirector.json --aod-file @input_data.txt
+#o2-analysis-hf-data-creator-hidden-charm-reduced $COMMONCONFIGS 
 #o2-analysis-hf-track-index-skim-creator $COMMONCONFIGS --aod-file @input_data.txt --aod-writer-json OutputDirector.json

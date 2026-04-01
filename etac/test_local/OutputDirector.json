@@ -4,10 +4,10 @@
         "resfile": "AO2D",
         "OutputDescriptors": [
             {
-                "table": "AOD/HCSELCOLLISION/0"
+                "table": "AOD/HFREDCOLLISION/0"
             },
             {
-                "table": "AOD/HCSELTRACK/0"
+                "table": "AOD/HCSELTRACKS/0"
             }
         ],
         "ntfmerge": 1

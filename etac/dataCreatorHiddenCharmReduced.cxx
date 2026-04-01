@@ -18,12 +18,11 @@
 #include "PWGHF/Core/CentralityEstimation.h"
 #include "PWGHF/Core/SelectorCuts.h"
 #include "PWGHF/DataModel/AliasTables.h"
-#include "PWGHF/D2H/DataModel/ReducedDataModel.h"
-#include "PWGHF/D2H/Utils/utilsRedDataFormat.h"
 #include "PWGHF/DataModel/CandidateSelectionTables.h"
 #include "PWGHF/DataModel/TrackIndexSkimmingTables.h"
+#include "PWGHF/D2H/DataModel/ReducedDataModel.h"
+#include "PWGHF/D2H/Utils/utilsRedDataFormat.h"
 #include "PWGHF/Utils/utilsAnalysis.h"
-#include "PWGHF/D2H/DataModel/HiddenCharm.h"
 #include "PWGHF/Utils/utilsBfieldCCDB.h"
 #include "PWGHF/Utils/utilsEvSelHf.h"
 
@@ -269,7 +268,7 @@ struct HfDataCreatorEtaCToProtonReduced {
           continue;
         }
         std::array pVecProton{trk.pVector()};
-        hfTrackLite(collision.globalIndex(), trk.globalIndex(), pVecProton[0], pVecProton[1], pVecProton[2], trk.sign(), static_cast<uint8_t>(TrackType::Proton));
+        hfTrackLite(trk.globalIndex(), collision.globalIndex(), pVecProton[0], pVecProton[1], pVecProton[2], trk.sign(), static_cast<uint8_t>(TrackType::Proton));
         selectedTrackIds.push_back(trk.globalIndex());
         if (config.fillHistograms) {
           registry.fill(HIST("hPtCutsProton"), trk.pt());

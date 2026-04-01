@@ -123,62 +123,6 @@
     "processTracksIUWithTracksQA": "false",
     "processTracksMCIU": "false"
   },
-  "hf-hidden-charm-sel-collisions": {
-    "fillHistograms": "true",
-    "hfEvSel": {
-      "centralityMin": "-10",
-      "centralityMax": "100",
-      "useSel8Trigger": "true",
-      "triggerClass": "-1",
-      "useTvxTrigger": "true",
-      "useTimeFrameBorderCut": "true",
-      "useItsRofBorderCut": "true",
-      "useIsGoodZvtxFT0vsPV": "false",
-      "useNoSameBunchPileup": "false",
-      "useOccupancyCut": "false",
-      "occEstimator": "1",
-      "occupancyMin": "0",
-      "occupancyMax": "1000000",
-      "nPvContributorsMin": "0",
-      "chi2PvMax": "-1",
-      "zPvPosMin": "-10",
-      "zPvPosMax": "10",
-      "useNoCollInTimeRangeNarrow": "false",
-      "useNoCollInTimeRangeStandard": "false",
-      "useNoCollInRofStandard": "false",
-      "softwareTrigger": "",
-      "bcMarginForSoftwareTrigger": "100",
-      "ccdbPathSoftwareTrigger": "EventFiltering\/Zorro\/",
-      "th2ConfigAxisCent": {
-        "values": [
-          "100",
-          "0",
-          "100"
-        ]
-      },
-      "th2ConfigAxisOccupancy": {
-        "values": [
-          "100",
-          "0",
-          "100000"
-        ]
-      },
-      "th2ConfigAxisInteractionRate": {
-        "values": [
-          "500",
-          "0",
-          "50000"
-        ]
-      },
-      "requireGoodRct": "false",
-      "rctLabel": "CBT_hadronPID",
-      "rctCheckZDC": "false",
-      "rctTreatLimitedAcceptanceAsBad": "false",
-      "irSource": ""
-    },
-    "processNoTrigSel": "true",
-    "processTrigAndCentFT0CSel": "false"
-  },
   "propagation-service": {
     "ccdburl": "http:\/\/alice-ccdb.cern.ch",
     "ccdb": {
@@ -695,12 +639,13 @@
     "processWSlice": "true",
     "processWoSlice": "false"
   },
-  "hf-hidden-charm-sel-tracks": {
+  "hf-data-creator-hidden-charm-reduced": {
     "fillHistograms": "true",
+    "selectProtons": "true",
     "itsNClsMin": "5",
     "tpcNClsFoundMin": "50",
     "tpcNClsCrossedRowsMin": "80",
-    "ptMinTrack": "0.20000000000000001",
+    "ptMinTrack": "0.5",
     "etaMaxTrack": "0.80000000000000004",
     "momForCombinedPid": "0.75",
     "binsPtTrack": {
@@ -727,37 +672,7 @@
           "0",
           "10",
           "0",
-          "10"
-        ],
-        [
-          "0",
-          "10",
-          "0",
-          "10"
-        ],
-        [
-          "0",
-          "10",
-          "0",
-          "10"
-        ],
-        [
-          "0",
-          "10",
-          "0",
-          "10"
-        ],
-        [
-          "0",
-          "10",
-          "0",
-          "10"
-        ],
-        [
-          "0",
-          "10",
-          "0",
-          "10"
+          "100"
         ],
         [
           "0",
@@ -767,44 +682,130 @@
         ],
         [
           "0",
-          "100",
+          "10",
           "0",
           "100"
         ],
         [
           "0",
-          "100",
+          "10",
           "0",
           "100"
         ],
         [
           "0",
-          "100",
+          "10",
           "0",
           "100"
         ],
         [
           "0",
-          "100",
-          "0",
-          "100"
-        ],
-        [
-          "0",
-          "100",
+          "10",
           "0",
           "100"
         ]
       ]
     },
-    "maxNsigmaTofPi": "1",
-    "maxNsigmaTofKa": "1",
+    "maxNsigmaTofPi": "2",
+    "maxNsigmaTofKa": "2",
     "maxNsigmaCombinedPr": "3",
-    "maxNsigmaTpcPi": "1",
-    "maxNsigmaTpcKa": "1",
+    "maxNsigmaTpcPi": "2",
+    "maxNsigmaTpcKa": "2",
     "maxNsigmaTpcPr": "3",
     "forceTOF": "false",
-    "processProton": "true"
+    "ccdbUrl": "http:\/\/alice-ccdb.cern.ch",
+    "ccdbPathGrpMag": "GLO\/Config\/GRPMagField",
+    "doMcRecQa": "true",
+    "rejectPairsWithCommonDaughter": "true",
+    "rejectCollisionsWithBadEvSel": "true",
+    "hfEvSel": {
+      "centralityMin": "-10",
+      "centralityMax": "100",
+      "useSel8Trigger": "true",
+      "triggerClass": "-1",
+      "useTvxTrigger": "true",
+      "useTimeFrameBorderCut": "true",
+      "useItsRofBorderCut": "true",
+      "useIsGoodZvtxFT0vsPV": "false",
+      "useNoSameBunchPileup": "false",
+      "useOccupancyCut": "false",
+      "occEstimator": "1",
+      "occupancyMin": "0",
+      "occupancyMax": "1000000",
+      "nPvContributorsMin": "0",
+      "chi2PvMax": "-1",
+      "zPvPosMin": "-10",
+      "zPvPosMax": "10",
+      "useNoCollInTimeRangeNarrow": "false",
+      "useNoCollInTimeRangeStandard": "false",
+      "useNoCollInRofStandard": "false",
+      "softwareTrigger": "",
+      "bcMarginForSoftwareTrigger": "100",
+      "ccdbPathSoftwareTrigger": "EventFiltering\/Zorro\/",
+      "th2ConfigAxisCent": {
+        "values": [
+          "100",
+          "0",
+          "100"
+        ]
+      },
+      "th2ConfigAxisOccupancy": {
+        "values": [
+          "100",
+          "0",
+          "100000"
+        ]
+      },
+      "th2ConfigAxisInteractionRate": {
+        "values": [
+          "500",
+          "0",
+          "50000"
+        ]
+      },
+      "requireGoodRct": "false",
+      "rctLabel": "CBT_hadronPID",
+      "rctCheckZDC": "false",
+      "rctTreatLimitedAcceptanceAsBad": "false",
+      "irSource": ""
+    },
+    "processEtaCTrack": "true"
+  },
+  "hf-task-hidden-charm": {
+    "centEstimator": "0",
+    "centralityMin": "0",
+    "centralityMax": "100",
+    "fillOnlyUnlikeSign": "true",
+    "fillOnlyLikeSign": "false",
+    "thnConfigAxisInvMass": {
+      "values": [
+        "1400",
+        "2.7999999999999998",
+        "4.2000000000000002"
+      ]
+    },
+    "thnConfigAxisPt": {
+      "values": [
+        "100",
+        "0",
+        "10"
+      ]
+    },
+    "thnConfigAxisCent": {
+      "values": [
+        "100",
+        "0",
+        "100"
+      ]
+    },
+    "thnConfigAxisSign": {
+      "values": [
+        "2",
+        "-1",
+        "1"
+      ]
+    },
+    "processEtacPP": "true"
   },
   "internal-dpl-aod-global-analysis-file-sink": "",
   "internal-dpl-aod-writer": ""
