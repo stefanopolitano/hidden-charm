@@ -1,0 +1,51 @@
+do_download: true
+do_projection: true
+do_fit: true
+
+outdir: 'results/'
+out_label: 'etac_analysis'
+
+download:
+  alien_path: ['/alice/cern.ch/user/a/alihyperloop/outputs/0064/649882/226188/Stage_1/003/',
+               '/alice/cern.ch/user/a/alihyperloop/outputs/0064/649882/226188/Stage_1/001/',
+               '/alice/cern.ch/user/a/alihyperloop/outputs/0064/649882/226188/Stage_1/002/']
+
+  destination: 'data/'
+
+projection:
+  input_sparse: 'data/sparse_data.root'
+  sparse_path: 'hf-task-hidden-charm/hSparseHiddenCharm'
+  pt_bins: [0., 2.0, 4.0, 6.0, 20.0]
+  mass_bins: [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 12.0, 15.0, 20.0,
+              25.0, 30.0, 40.0, 50.0, 70.0, 100.0]
+  subtract_LS: true
+  sparse_axes:
+    mass: 0
+    pt: 1
+    sign: 2
+  rebin_axes:
+    mass: 4
+
+fit:
+  input_sparse: 'data/sparse_data.root'
+  mass_ranges:
+   [
+    [0.0, 2.0],
+    [2.0, 4.0],
+    [4.0, 6.0],
+    [6.0, 20.0]
+   ]
+  sig_pdf: [
+    ["doublecbsymm"],
+    ["doublecbsymm"],
+    ["doublecbsymm"],
+    ["doublecbsymm"],
+    ["doublecbsymm"]
+  ]
+  bkg_pdf: [
+    ["expo"],
+    ["expo"],
+    ["expo"],
+    ["expo"],
+    ["expo"]
+  ]
