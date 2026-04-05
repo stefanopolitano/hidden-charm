@@ -1,11 +1,11 @@
 # Code to download the AnalysisResults.root file from the CERN server with alien.py
 import os
-import subprocess
+import argparse
 import yaml
 
-def download_data():
+def download_data(config_path):
     # Load configuration
-    with open("config/config_etac.yml", "r") as config_file:
+    with open(config_path, "r") as config_file:
         config = yaml.safe_load(config_file)
 
     # Prepare output directory
@@ -16,14 +16,11 @@ def download_data():
     # Download the data using alien.py
     alien_path = config['download']['alien_path']
     alien_path = [path + "/AnalysisResults.root" for path in alien_path]  # Append the filename to each path
-    local_path = os.path.join(output_dir_download, "AnalysisResults.root")
-    print(f"Running command: alien_cp {alien_path} file:{local_path}")
-    for ifile in alien_path:
+    for index, ifile in enumerate(alien_path):
+        local_path = os.path.join(output_dir_download, f"AnalysisResults_{index}.root")
+        print(f"Downloading {ifile} to {local_path}")
         os.system(f"alien_cp -T 10 {ifile} file:{local_path}")
         print(f"Downloaded {ifile} to {local_path}")
-        # momentarily rename the downloaded file to avoid overwriting if multiple files are downloaded, will be renamed to the final name after the loop
-        os.system(f"mv {local_path} {os.path.join(output_dir_download, os.path.basename(ifile))}")
-        print(f"Renamed {os.path.basename(ifile)} to {os.path.basename(local_path)}")
     
     # If multiple files were downloaded, merge them into a single file using ROOT's hadd command
     if len(alien_path) > 1:
@@ -42,4 +39,7 @@ def download_data():
     os.system(f"mv {local_path} {os.path.join(output_dir_download, outlabel_filename)}")
 
 if __name__ == "__main__":
-    download_data()
+    parser = argparse.ArgumentParser(description='Arguments')
+    parser.add_argument('config', type=str, help='Path to the configuration file')
+    args = parser.parse_args()
+    download_data(args.config)

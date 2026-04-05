@@ -2,11 +2,12 @@
 import ROOT
 import yaml
 import numpy as np
+import argparse
 import os
 
-def project_thnsparse():
+def project_thnsparse(config_path):
     # Load configuration
-    with open("config/config_etac.yml", "r") as config_file:
+    with open(config_path, "r") as config_file:
         config = yaml.safe_load(config_file)
     config_projection = config["projection"]  # Get the projection configuration
     config_axes = config_projection["sparse_axes"]  # Get the axes configuration
@@ -85,4 +86,7 @@ def project_thnsparse():
     print(f"Projected histogram saved to '{output_dir_projection}/projected_histograms.root'")
 
 if __name__ == "__main__":
-    project_thnsparse()
+    parser = argparse.ArgumentParser(description='Arguments')
+    parser.add_argument('config', type=str, help='Path to the configuration file')
+    args = parser.parse_args()
+    project_thnsparse(args.config)
